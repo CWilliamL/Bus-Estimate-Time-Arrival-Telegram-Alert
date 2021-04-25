@@ -61,12 +61,17 @@ def configure_telegram():
 bot = configure_telegram()
 #Only runs in working day
 
-def checketa(route,station):
-    stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[station]))
+def checketa(route,staname):
+
+    stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
     df=""
+
     for i in stop.json()['data']:
-        if i['route'] == route:
-            df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
+        try:
+            if i['route'] == route:
+                df = df + (i['eta'].split("T")[1].split("+")[0] + "\n")
+        except:
+            pass
     return df
 
 
@@ -76,33 +81,35 @@ def main():
         staname = ""
         route = ""
         if not today in hk_holidays:
-            text = ""
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:55:00":
-                staname = "TSUEN KING CIRCUIT MARKET"
-                route = "39M"
+            if today.weekday() != 5 or today.weekday() != 6:
+                text = ""
+                if datetime.now(tz).strftime("%H:%M:%S") == "07:45:00":
+                    staname = "TSUEN KING CIRCUIT MARKET"
+                    route = "39M"
 
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:57:00":
-                staname = "CHUNG ON STREET TSUEN WAN"
-                route = "43P"
+                if datetime.now(tz).strftime("%H:%M:%S") == "08:03:00":
+                    staname = "CHUNG ON STREET TSUEN WAN"
+                    route = "43P"
 
-            if datetime.now(tz).strftime("%H:%M:%S") == "18:30:00":
-                staname = "FU WAH STREET TSUEN WAN"
-                route = "39M"
-            if staname !="" and route !="":
-                df = checketa(route,staname)
-                text = "黎緊"+route+"係"+stationentotc[staname]+"開出時間係:/n"+df
-            if text != "":
-                bot.sendMessage(chat_id=241767414, text=text)
+                if datetime.now(tz).strftime("%H:%M:%S") == "18:32:00":
+                    staname = "FU WAH STREET TSUEN WAN"
+                    route = "39M"
+                if staname !="" and route !="":
+                    df = checketa(route,staname)
+                    if df != "":
+                        text = "黎緊"+route+"係"+stationentotc[staname]+"開出時間係:\n"+df
+                if text != "":
+                    bot.sendMessage(chat_id=241767414, text=text)
 
-        # if event.get('httpMethod') == 'POST' and event.get('body'): 
-        #     logger.info('Message received')
-        #     update = telegram.Update.de_json(json.loads(event.get('body')), bot)
-        #     chat_id = update.message.chat.id
-        #     text = update.message.text
+            # if event.get('httpMethod') == 'POST' and event.get('body'): 
+            #     logger.info('Message received')
+            #     update = telegram.Update.de_json(json.loads(event.get('body')), bot)
+            #     chat_id = update.message.chat.id
+            #     text = update.message.text
 
-        #     if text == '/BusETA':
-        #         pass
-        #         #text = "Hello, human! I am an echo bot, built with Python and the Serverless Framework."
+            #     if text == '/BusETA':
+            #         pass
+            #         #text = "Hello, human! I am an echo bot, built with Python and the Serverless Framework."
 
 if __name__=='__main__':
     main()
