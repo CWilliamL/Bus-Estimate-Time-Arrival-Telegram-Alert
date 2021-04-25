@@ -5,5 +5,4 @@ cryptography
 python-telegram-bot
 pytz
 holidays
-telegram-bot
 requests
