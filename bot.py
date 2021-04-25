@@ -62,7 +62,7 @@ bot = configure_telegram()
 #Only runs in working day
 
 def checketa(route,station):
-    stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
+    stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[station]))
     df=""
     for i in stop.json()['data']:
         if i['route'] == route:
