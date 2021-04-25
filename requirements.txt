@@ -1,0 +1,5 @@
+pytz
+holidays
+python-telegram-bot
+telegramg
+gunicorn
