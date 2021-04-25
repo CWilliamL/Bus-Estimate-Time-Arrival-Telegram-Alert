@@ -77,11 +77,11 @@ def main():
         route = ""
         if not today in hk_holidays:
             text = ""
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:50:00":
+            if datetime.now(tz).strftime("%H:%M:%S") == "14:55:00":
                 staname = "TSUEN KING CIRCUIT MARKET"
                 route = "39M"
 
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:53:00":
+            if datetime.now(tz).strftime("%H:%M:%S") == "14:57:00":
                 staname = "CHUNG ON STREET TSUEN WAN"
                 route = "43P"
 
