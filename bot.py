@@ -1,118 +1,68 @@
-import requests
-import pytz, holidays
-from datetime import date, datetime
-from telegram.ext import Updater, CommandHandler
-import time
-import telegram
+import logging
 
-url = "https://data.etabus.gov.hk/v1/transport/kmb/stop"
-route_stop_url = "https://data.etabus.gov.hk/v1/transport/kmb/route-stop/{route}/{direction}/{service_type}"
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-stop_ETA_url ="https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/{stop_id}"
-route_ETA_url = "https://data.etabus.gov.hk/v1/transport/kmb/route-eta/{route}/{service_type}"
-stop_url = "https://data.etabus.gov.hk/v1/transport/kmb/route/{route}/{direction}/{service_type}"
-route_url = "https://data.etabus.gov.hk/v1/transport/kmb/route/39M"
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
-route_stop = "https://data.etabus.gov.hk/v1/transport/kmb/route-stop/%s/outbound/1"%("39M")
-stop = "https://data.etabus.gov.hk/v1/transport/kmb/route/%s/outbound/1"%("39M")
-route = "https://data.etabus.gov.hk/v1/transport/kmb/route-eta/%s/1"%("39M") 
+# Define a few command handlers. These usually take the two arguments update and
+# context. Error handlers also receive the raised TelegramError object in error.
+def start(update, context):
+    """Send a message when the command /start is issued."""
+    update.message.reply_text('Hey this is your bot!')
 
 
-# station_list = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop")
+def help(update, context):
+    """Send a message when the command /help is issued."""
+    update.message.reply_text('Currently I am in Alpha stage, help me also!')
 
-# for i in station_list.json()['data']:
-#     if i['name_en'] == 'FU WAH STREET TSUEN WAN':
-#         print(i['stop'])
-
-    
-
-station = {
-    "ALLWAY GARDENS BUS TERMINUS" : "756141FB7A6EA349",
-    "TSUEN KING CIRCUIT MARKET" : "FE30EA565CC9ADBE",
-    "FU WAH STREET TSUEN WAN" : "D711AFA9658D51E9",
-    "CHUNG ON STREET TSUEN WAN" : "CA793BE80FF68AE2"
-}
+def piracy(update, context):
+    update.message.reply_text('Ahhan, FBI wants to know your location!')
 
 
-tz = pytz.timezone('Hongkong')
-hk_holidays = holidays.HK()
+def echo(update, context):
+    """Echo the user message."""
+    update.message.reply_text(update.message.text)
 
-def configure_telegram():
-    """
-    Configures the bot with a Telegram Token.
-    Returns a bot instance.
-    """
 
-    TELEGRAM_TOKEN = '1777615156:AAFhKEa9wRQf2Txif8fC6RgpK13q6OhrMw8'
-    if not TELEGRAM_TOKEN:
-        logger.error('The TELEGRAM_TOKEN must be set')
-        raise NotImplementedError
+def error(update, context):
+    """Log Errors caused by Updates."""
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
 
-    return telegram.Bot(TELEGRAM_TOKEN)
-
-bot = configure_telegram()
-#Only runs in working day
 
 def main():
-    while True:
-        today = date.today()
-        if not today in hk_holidays:
-            text = ""
-            if datetime.now(tz).strftime("%H:%M:%S") == "13:17:00":
-                staname = "TSUEN KING CIRCUIT MARKET"
-                stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
-                df=""
-                for i in stop.json()['data']:
-                    if i['route'] == "39M":
-                        df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
-                print(staname)
-                print(df)       
-                text = staname + "\n" + df
-                time.sleep(1)  
+    """Start the bot."""
+    # Create the Updater and pass it your bot's token.
+    # Make sure to set use_context=True to use the new context based callbacks
+    # Post version 12 this will no longer be necessary
+    updater = Updater("1777615156:AAFhKEa9wRQf2Txif8fC6RgpK13q6OhrMw8", use_context=True)
 
-            if datetime.now(tz).strftime("%H:%M:%S") == "13:20:00":
-                staname = "CHUNG ON STREET TSUEN WAN"
-                stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
-                df=""
-                for i in stop.json()['data']:
-                    if i['route'] == "43P":
-                        df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
-                print(staname)
-                print(df)       
-                text = staname + "\n" + df
-                time.sleep(1)    
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
 
-            if datetime.now(tz).strftime("%H:%M:%S") == "18:30:00":
-                staname = "FU WAH STREET TSUEN WAN"
-                stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
-                df=""
-                for i in stop.json()['data']:
-                    if i['route'] == "39M":
-                        df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
-                print(staname)
-                print(df)   
-                text = staname + "\n" + df    
-                time.sleep(1)    
-            if text != "":
-                bot.sendMessage(chat_id=241767414, text=text)
+    # on different commands - answer in Telegram
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help))
+    dp.add_handler(CommandHandler("piracy", piracy))
 
-        # if event.get('httpMethod') == 'POST' and event.get('body'): 
-        #     logger.info('Message received')
-        #     update = telegram.Update.de_json(json.loads(event.get('body')), bot)
-        #     chat_id = update.message.chat.id
-        #     text = update.message.text
+    # on noncommand i.e message - echo the message on Telegram
+    dp.add_handler(MessageHandler(Filters.text, echo))
 
-        #     if text == '/BusETA':
-        #         pass
-        #         #text = "Hello, human! I am an echo bot, built with Python and the Serverless Framework."
+    # log all errors
+    dp.add_error_handler(error)
 
-if __name__=='__main__':
+    # Start the Bot
+    updater.start_polling()
+
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.idle()
+
+
+if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
