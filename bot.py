@@ -81,7 +81,8 @@ def main():
         staname = ""
         route = ""
         if not today in hk_holidays:
-            if today.weekday() != 5 or today.weekday() != 6:
+            if today.weekday() != 5 and today.weekday() != 6:
+                print(today.weekday()!=6)
                 text = ""
                 if datetime.now(tz).strftime("%H:%M:%S") == "07:45:00":
                     staname = "TSUEN KING CIRCUIT MARKET"
@@ -100,6 +101,7 @@ def main():
                         text = "黎緊"+route+"係"+stationentotc[staname]+"開出時間係:\n"+df
                 if text != "":
                     bot.sendMessage(chat_id=241767414, text=text)
+                    time.sleep(1)
 
             # if event.get('httpMethod') == 'POST' and event.get('body'): 
             #     logger.info('Message received')
