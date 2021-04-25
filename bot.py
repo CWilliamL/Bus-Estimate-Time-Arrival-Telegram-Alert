@@ -59,7 +59,7 @@ def main():
         today = date.today()
         if not today in hk_holidays:
             text = ""
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:27:00":
+            if datetime.now(tz).strftime("%H:%M:%S") == "14:33:00":
                 staname = "TSUEN KING CIRCUIT MARKET"
                 stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
                 df=""
@@ -71,7 +71,7 @@ def main():
                 text = staname + "\n" + df
                 time.sleep(1)  
 
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:30:00":
+            if datetime.now(tz).strftime("%H:%M:%S") == "14:35:00":
                 staname = "CHUNG ON STREET TSUEN WAN"
                 stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
                 df=""
