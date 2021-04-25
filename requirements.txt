@@ -1,5 +1,5 @@
 pytz
 holidays
 python-telegram-bot
-telegramg
+telegram
 gunicorn
