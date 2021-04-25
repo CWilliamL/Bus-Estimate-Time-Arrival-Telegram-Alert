@@ -59,7 +59,7 @@ def main():
         today = date.today()
         if not today in hk_holidays:
             text = ""
-            if datetime.now(tz).strftime("%H:%M:%S") == "13:15:00":
+            if datetime.now(tz).strftime("%H:%M:%S") == "13:17:00":
                 staname = "TSUEN KING CIRCUIT MARKET"
                 stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
                 df=""
@@ -97,15 +97,15 @@ def main():
             if text != "":
                 bot.sendMessage(chat_id=241767414, text=text)
 
-        if event.get('httpMethod') == 'POST' and event.get('body'): 
-            logger.info('Message received')
-            update = telegram.Update.de_json(json.loads(event.get('body')), bot)
-            chat_id = update.message.chat.id
-            text = update.message.text
+        # if event.get('httpMethod') == 'POST' and event.get('body'): 
+        #     logger.info('Message received')
+        #     update = telegram.Update.de_json(json.loads(event.get('body')), bot)
+        #     chat_id = update.message.chat.id
+        #     text = update.message.text
 
-            if text == '/BusETA':
-                pass
-                #text = "Hello, human! I am an echo bot, built with Python and the Serverless Framework."
+        #     if text == '/BusETA':
+        #         pass
+        #         #text = "Hello, human! I am an echo bot, built with Python and the Serverless Framework."
 
 if __name__=='__main__':
     main()
