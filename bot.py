@@ -34,6 +34,13 @@ station = {
     "CHUNG ON STREET TSUEN WAN" : "CA793BE80FF68AE2"
 }
 
+stationentotc = {
+    "ALLWAY GARDENS BUS TERMINUS" : "荃威花園巴士線站",
+    "TSUEN KING CIRCUIT MARKET" : "荃景圍街市",
+    "FU WAH STREET TSUEN WAN" : "富華街",
+    "CHUNG ON STREET TSUEN WAN" : "眾安街"
+}
+
 
 tz = pytz.timezone('Hongkong')
 hk_holidays = holidays.HK()
@@ -54,46 +61,36 @@ def configure_telegram():
 bot = configure_telegram()
 #Only runs in working day
 
+def checketa(route,station):
+    stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
+    df=""
+    for i in stop.json()['data']:
+        if i['route'] == route:
+            df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
+    return df
+
+
 def main():
     while True:
         today = date.today()
+        staname = ""
+        route = ""
         if not today in hk_holidays:
             text = ""
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:33:00":
+            if datetime.now(tz).strftime("%H:%M:%S") == "14:50:00":
                 staname = "TSUEN KING CIRCUIT MARKET"
-                stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
-                df=""
-                for i in stop.json()['data']:
-                    if i['route'] == "39M":
-                        df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
-                print(staname)
-                print(df)       
-                text = staname + "\n" + df
-                time.sleep(1)  
+                route = "39M"
 
-            if datetime.now(tz).strftime("%H:%M:%S") == "14:35:00":
+            if datetime.now(tz).strftime("%H:%M:%S") == "14:53:00":
                 staname = "CHUNG ON STREET TSUEN WAN"
-                stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
-                df=""
-                for i in stop.json()['data']:
-                    if i['route'] == "43P":
-                        df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
-                print(staname)
-                print(df)       
-                text = staname + "\n" + df
-                time.sleep(1)    
+                route = "43P"
 
             if datetime.now(tz).strftime("%H:%M:%S") == "18:30:00":
                 staname = "FU WAH STREET TSUEN WAN"
-                stop = requests.get("https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/%s"%(station[staname]))
-                df=""
-                for i in stop.json()['data']:
-                    if i['route'] == "39M":
-                        df = df + (i['route']+" " +i['eta'].split("T")[1].split("+")[0] + "\n")
-                print(staname)
-                print(df)   
-                text = staname + "\n" + df    
-                time.sleep(1)    
+                route = "39M"
+            if staname !="" and route !="":
+                df = checketa(route,staname)
+                text = "黎緊"+route+"係"+stationentotc[staname]+"開出時間係:/n"+df
             if text != "":
                 bot.sendMessage(chat_id=241767414, text=text)
 
