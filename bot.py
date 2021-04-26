@@ -82,7 +82,6 @@ def main():
         route = ""
         if not today in hk_holidays:
             if today.weekday() != 5 and today.weekday() != 6:
-                print(today.weekday()!=6)
                 text = ""
                 if datetime.now(tz).strftime("%H:%M:%S") == "07:45:00":
                     staname = "TSUEN KING CIRCUIT MARKET"
