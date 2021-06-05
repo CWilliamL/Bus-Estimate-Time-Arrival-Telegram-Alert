@@ -77,7 +77,10 @@ def checketa(route,staname):
 
 def main():
     while True:
-        today = date.today()
+        dtobj1=datetime.utcnow() 
+        dtobj3=dtobj1.replace(tzinfo=pytz.UTC)
+        today=dtobj3.astimezone(pytz.timezone("Asia/Hong_Kong"))
+        
         staname = ""
         route = ""
         if not today in hk_holidays:
