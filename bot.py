@@ -76,7 +76,9 @@ def checketa(route,staname):
 
 
 def main():
+    previous_time = time.time()
     while True:
+
         dtobj1=datetime.utcnow() 
         dtobj3=dtobj1.replace(tzinfo=pytz.UTC)
         today=dtobj3.astimezone(pytz.timezone("Asia/Hong_Kong"))
@@ -113,7 +115,24 @@ def main():
 
             #     if text == '/BusETA':
             #         pass
-            #         #text = "Hello, human! I am an echo bot, built with Python and the Serverless Framework."
+            #         text = "Hello, human! I am an echo bot, built with Python and the Serverless Framework."
+        if str(time.time() - previous_time).split(".")[0] =="300":
+            r = requests.get('https://booking.covidvaccine.gov.hk/forms/centre_data')
+            data = r.json()
+            TW = data["vaccines"][0]["regions"][2]["districts"][6]
+            found =""
+            for quote in TW["centers"][0]["quota"]:
+                if str(quote['status']) == "1" or str(quote['status']) == "2":
+                    found = found+ str(quote['date']) +"\n"
+
+            if found != "":
+                opening="以下日期%s有得book打針"%(TW["centers"][0]["cname"]) + "\n"
+                found = opening +found
+                bot.sendMessage(chat_id=241767414, text=found)
+            previous_time = time.time()
+
+
+            
 
 if __name__=='__main__':
     main()
