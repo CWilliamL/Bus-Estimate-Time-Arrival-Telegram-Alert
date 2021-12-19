@@ -3,6 +3,7 @@ An alert to get Hong Kong bus estimate time arrival and send alert to telegram
 
 # Usage
 Monitor the estimated time arrival of KMB bus at specific bus stop at specific time. Push message to telegram channel to alert user when is the next bus. Useful to know the coming bus arrival time before getting out from home every working day. 
+
 ![image](https://user-images.githubusercontent.com/75830784/146629000-46b1f6f8-bd48-435e-a876-194db8a8595f.png)
 
 
