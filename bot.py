@@ -23,7 +23,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-STATION_LIST, ROUTE_ETA, TIME, PERIOD, ADD, REMOVE = range(6)
+STATION_LIST, ROUTE_ETA, TIME, PERIOD,MINUTE_1DIGI, MINUTE_2DIGI, ADD, REMOVE = range(8)
 
 
 class bus_tg:
@@ -61,8 +61,7 @@ class bus_tg:
 
     def today_task(self,context: CallbackContext):
         chat_id = self.chat_id
-        
-        self.updater()
+        self.json_updater()
         t = datetime.now()
         t = t.astimezone(self.tz)
         
@@ -73,6 +72,8 @@ class bus_tg:
             if alert_detail["period"] == "1":
                 pass
             elif alert_detail["period"] == "2":
+                print(t.date())
+                print(t.weekday())
                 if t.date() in self.hk_holidays:
                     continue
 
@@ -82,6 +83,7 @@ class bus_tg:
             set_minute = alert_detail["time"][2:]
             set_datetime = datetime(today_year,today_month,today_day,int(set_hour),int(set_minute),00,000000,tzinfo=self.tz)
             set_datetime_utc = set_datetime.astimezone(pytz.utc)
+            print("%s %s %s %s %s"%(alert_detail["route"][0],alert_detail["direction"],alert_detail["station"],str(set_datetime),str(set_datetime_utc)))
             context.job_queue.run_once(self.checkseteta,set_datetime_utc,context=(chat_id,json.dumps(alert_detail)),name=str(uuid.uuid4()))
 
     
@@ -153,9 +155,15 @@ class bus_tg:
         
     def route(self, update: Update, context: CallbackContext):
         try:
-            route_id = context.args[0].upper().rstrip()
+            query_message = update.message.text
+            if "/alert" in query_message:
+                route_id = context.args[0].upper().rstrip()
+                handler_type = update.message.text.split(" ")[0]
+            else:
+                route_id = update.message.text.upper()
+                handler_type = "/route"
             route_list = {}
-            handler_type = update.message.text.split(" ")[0]
+
             context.user_data["handler_type"] = handler_type
             temp_route_list = copy.deepcopy(self.route_list)
             for route_detail in temp_route_list:
@@ -172,12 +180,12 @@ class bus_tg:
             if not route_list:
                 update.message.reply_text("搵唔到你打既路線")
                 return ConversationHandler.END
-            keyboard = [
+            button_list = [
                 [InlineKeyboardButton(dest,callback_data=json.dumps(route)) for dest,route in route_list.items()]
                 #[InlineKeyboardButton("A",callback_data= '1')]
             ]
-
-            reply_markup = InlineKeyboardMarkup(keyboard)
+            button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
+            reply_markup = InlineKeyboardMarkup(button_list)
             update.message.reply_text("%s, Choose Direction"%(route_id), reply_markup=reply_markup)
 
             return STATION_LIST
@@ -213,9 +221,11 @@ class bus_tg:
     def station(self, update: Update, context: CallbackContext):
         query = update.callback_query
         query.answer()
+        text = query.data
+        self.cancel(text,query)
         handler_type = context.user_data["handler_type"]
 
-        callback_data = json.loads(query.data)
+        callback_data = json.loads(text)
         route_id = callback_data["route"]
         direction = self.direction[callback_data["bound"]]
         service_type = callback_data["service_type"]
@@ -230,7 +240,7 @@ class bus_tg:
         for route_station in station_list:
             name_tc = [station["name_tc"] for station in self.station_list if station["stop"] == route_station["stop"]][0]
             button_list.append([InlineKeyboardButton(name_tc,callback_data=json.dumps(route_station))])
-        
+        button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
         reply_markup = InlineKeyboardMarkup(button_list)
         #reply_markup.add(InlineKeyboardButton("1", callback_data=str(1)))
         #reply_markup.add(InlineKeyboardButton("2", callback_data=str(2)))
@@ -244,34 +254,103 @@ class bus_tg:
     def alert_time(self, update: Update, context: CallbackContext):
         query = update.callback_query
         query.answer()
-        callback_data = json.loads(query.data)
-
+        text = query.data
+        self.cancel(text,query)
+        callback_data = json.loads(text)
+        button_list = []
+        sub_button_list = []
         context.user_data["route"] = callback_data["route"]
         context.user_data["direction"] = callback_data["bound"][:1]
         context.user_data["service_type"] = callback_data["bound"][1:]
         context.user_data["station"] = callback_data["stop"]
-        query.edit_message_text("請輸入希望幫你檢查既時間, 例: 2030")
-        
+        for hour in range(24):
+            if hour < 10:
+                mod_hour = "0"+str(hour)
+                sub_button_list.append(InlineKeyboardButton(mod_hour,callback_data=mod_hour))
+            else:
+                sub_button_list.append(InlineKeyboardButton(str(hour),callback_data=str(hour)))
+            if (hour+1) % 3==0:
+                button_list.append(sub_button_list)
+                sub_button_list = []
+        button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
+        reply_markup=InlineKeyboardMarkup(button_list)
+        query.edit_message_text("請選擇希望幫你檢查既小時", reply_markup=reply_markup)
+        #query.edit_message_text("請輸入希望幫你檢查既時間, 例: 2030")
+        return MINUTE_1DIGI
+    
+    def minute_1digi(self, update:Update, context: CallbackContext):
+        query = update.callback_query
+        query.answer()
+        text = query.data
+        self.cancel(text,query)
+        context.user_data["hour"] = text
+        sub_button_list =[]
+        button_list =[]
+        for minute in range(0,60,10):
+            if minute == 0:
+                sub_button_list.append(InlineKeyboardButton("00",callback_data="00"))
+            else:
+                sub_button_list.append(InlineKeyboardButton(str(minute),callback_data=str(minute)))
+            if (minute+10) % 30 == 0:
+                button_list.append(sub_button_list)
+                sub_button_list = []
+        button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
+        reply_markup=InlineKeyboardMarkup(button_list)
+        query.edit_message_text("請選擇希望幫你檢查既分鐘", reply_markup=reply_markup)
+        return MINUTE_2DIGI
+    
+    def minute_2digi(self, update: Update, context: CallbackContext):
+        query = update.callback_query
+        query.answer()
+        text = query.data
+        self.cancel(text,query)
+        minute = int(text)
+        sub_button_list =[]
+        button_list =[]
+        for minute in range(minute,minute+10):
+            sub_button_list.append(InlineKeyboardButton(str(minute),callback_data=str(minute)))
+            if (minute+1) % 2 == 0:
+                button_list.append(sub_button_list)
+                sub_button_list = []
+        button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
+        reply_markup=InlineKeyboardMarkup(button_list)
+        query.edit_message_text("請選擇希望幫你檢查既分鐘", reply_markup=reply_markup)
         return PERIOD
 
     def alert_period(self, update: Update, context: CallbackContext):
-        text = update.message.text
-        context.user_data['time'] = text
-
-        if len(text) == 4:
-            if text.isnumeric():
-                text = text[:2] + ":" +text[2:]
-                update.message.reply_text("%s, 好, 係每日通知你定返工日先通知, 輸入'1' 係每日通知, '2'係返工日通知"%(text))
-                return ADD
-            else:
-                update.message.reply_text("你輸入既唔係數字黎，請重新開始")
-                return ConversationHandler.END
-        else:
-            update.message.reply_text("你輸入的格式錯誤，請重新開始")
-            return ConversationHandler.END
+        query = update.callback_query
+        query.answer()
+        text = query.data
+        self.cancel(text,query)
+        context.user_data["minute"] = text
+        context.user_data["time"] = context.user_data["hour"]+context.user_data["minute"]
+        print(context.user_data["time"])
+        button_list =[]
+        sub_button_list =[]
+        sub_button_list.append(InlineKeyboardButton("每日通知",callback_data="1"))
+        sub_button_list.append(InlineKeyboardButton("返工日通知",callback_data="2"))
+        button_list.append(sub_button_list)
+        button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
+        reply_markup=InlineKeyboardMarkup(button_list)
+        query.edit_message_text("好, 係每日通知你定返工日先通知?", reply_markup=reply_markup)
+        return ADD
+        # if len(text) == 4:
+        #     if text.isnumeric():
+        #         text = text[:2] + ":" +text[2:]
+        #         update.message.reply_text("%s, 好, 係每日通知你定返工日先通知, 輸入'1' 係每日通知, '2'係返工日通知"%(text))
+        #         return ADD
+        #     else:
+        #         update.message.reply_text("你輸入既唔係數字黎，請重新開始")
+        #         return ConversationHandler.END
+        # else:
+        #     update.message.reply_text("你輸入的格式錯誤，請重新開始")
+        #     return ConversationHandler.END
     
     def add(self, update:Update, context: CallbackContext):
-        text = update.message.text
+        query = update.callback_query
+        query.answer()
+        text = query.data
+        self.cancel(text,query)
         if text == "1" or text == "2":
             context.user_data["period"] = text
             context.user_data.pop('handler_type')
@@ -280,11 +359,9 @@ class bus_tg:
             self.alert_list["data"].append(context.user_data.copy())
             print(self.alert_list)
             self.save_alert_list()
-            update.message.reply_text("搞掂")
+            query.edit_message_text("搞掂")
             return ConversationHandler.END
-        else:
-            update.message.reply_text("你輸入既唔係'1'或者'2'黎，請重新開始")
-            return ConversationHandler.END
+
     
     def save_alert_list(self):
         with open(os.path.join(self.file_path,'alert.json'),'w') as f:
@@ -292,42 +369,57 @@ class bus_tg:
 
         
     def remove(self, update:Update, context: CallbackContext):
-        df = "以下係你希望我會通知你既路線, 如果想取消就打相應既數字\n"
+        df = "以下係你希望我會通知你既路線, 如果想取消就撳相應既數字\n"
         index = 1
+        alert_period = {
+            "1":"每日通知",
+            "2":"返工日通知"
+        }
+        button_list = []
+        sub_button_list = []
         for alert_detail in self.alert_list["data"]: 
             station = alert_detail["station"]
             direction = alert_detail["direction"]
             alert_time = alert_detail["time"]
             routes = alert_detail["route"]
+            period = alert_detail["period"]
             route_list = ""
             for route in routes:
                 route_list += route +" "
             
             service_type = alert_detail["service_type"]
             route_detail = self.routeStation2detail(routes[0],direction,service_type)
-            print(route_detail)
+            
             dest_tc = route_detail["dest_tc"]
             name_tc = self.stationID2tc(station)
-            df += "%s: 路線: %s 目的地: %s 巴士站: %s 通知時間: %s \n"%(str(index),route_list,dest_tc, name_tc, alert_time)
+            df += "%s: 路線: %s 目的地: %s 巴士站: %s 通知時間: %s %s\n"%(str(index),route_list,dest_tc, name_tc, alert_time,alert_period[period])
+            sub_button_list.append(InlineKeyboardButton(str(index),callback_data=str(index)))
+            if index %3 ==0 or index ==len(self.alert_list["data"]):
+                button_list.append(sub_button_list)
+                sub_button_list=[]
             index+=1
-        update.message.reply_text(df)
+        button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
+        reply_markup=InlineKeyboardMarkup(button_list)
+        update.message.reply_text(df,reply_markup=reply_markup)
         return REMOVE
     
     def removefromList(self, update:Update, context: CallbackContext ):
-        text = update.message.text
+        query = update.callback_query
+        query.answer()
+        text = query.data
+        self.cancel(text,query)
         if text.isnumeric():
             index = int(text)
             if index >= 1 and index <= len(self.alert_list["data"]):
                 self.alert_list["data"].pop(index-1)
                 self.save_alert_list()
-                update.message.reply_text("Del左")
+                query.edit_message_text("Del左")
                 return ConversationHandler.END
             else:
-                update.message.reply_text("你打既字唔岩, 再黎過")
+                query.edit_message_text("你打既字唔岩, 再黎過")
                 return ConversationHandler.END
-        else:
-            update.message.reply_text("你打既字唔岩, 再黎過")
-            return ConversationHandler.END
+        
+
             
             
     
@@ -342,24 +434,28 @@ class bus_tg:
 
         context.job_queue.run_once(self.hello,10, context=(chat_id,"yuasdgu"), name=str(chat_id))
 
-    def updater(self):
+    def json_updater(self):
         self.station_list = self.callAPI(config["URL"]["STOP"])["data"]
         self.route_list = self.callAPI(config["URL"]["ROUTE"])["data"]
         
+    def cancel(self, text,query):
+        if text == "cancel":
+            query.edit_message_text("取消")
+            return ConversationHandler.END
     
     def main(self):
         
         self.load_file()
         self.updater = Updater(self.token)
         self.dispatcher = self.updater.dispatcher
-        
+        self.updater.job_queue.run_once(self.today_task,5,context=(self.chat_id,"yuasdgu"),name= str(uuid.uuid4()))
         self.updater.job_queue.run_daily(self.today_task,self.daily_scan_time,days=(0, 1, 2, 3, 4, 5, 6),context=(self.chat_id,"yuasdgu"),name= str(uuid.uuid4()))
-        #self.updater.job_queue.run_once(self.set_today_alert,1,context=(self.chat_id,"yuasdgu"),name= str(uuid.uuid4()))
-        #self.updater.job_queue.run_daily(self.hello,self.daily_scan_time)
+
         
         #Add different command
         route_handler = ConversationHandler(
-            entry_points = [CommandHandler('route',self.route)],
+            #entry_points = [CommandHandler('route',self.route)],
+            entry_points = [MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^Done$')),self.route)],
             states={
                 STATION_LIST: [
                     CallbackQueryHandler(self.station),
@@ -381,12 +477,17 @@ class bus_tg:
                 TIME: [
                     CallbackQueryHandler(self.alert_time)
                 ],
+                MINUTE_1DIGI: [
+                    CallbackQueryHandler(self.minute_1digi)
+                ],
+                MINUTE_2DIGI: [
+                    CallbackQueryHandler(self.minute_2digi)
+                ],
                 PERIOD: [
-                    
-                    MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^Done$')),self.alert_period)
+                    CallbackQueryHandler(self.alert_period)
                 ],
                 ADD: [
-                    MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^Done$')),self.add)
+                    CallbackQueryHandler(self.add)
                 ]
             },
             fallbacks=[CommandHandler('alert',self.route)],
@@ -396,7 +497,7 @@ class bus_tg:
             entry_points = [CommandHandler("remove",self.remove)],
             states={
                 REMOVE: [
-                    MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^Done$')),self.removefromList)
+                    CallbackQueryHandler(self.removefromList)
                 ]
             },
             fallbacks=[CommandHandler("remove",self.remove)],
