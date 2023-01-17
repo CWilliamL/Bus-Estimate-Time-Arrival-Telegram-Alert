@@ -59,8 +59,6 @@ class bus_tg:
         #context.bot.send_message(chat_id, text='Beep!')
         context.job_queue.run_once(self.today_task,1,context=(self.chat_id,"yuasdgu"),name= str(uuid.uuid4()))
 
-    
-
     def today_task(self,context: CallbackContext):
         chat_id = self.chat_id
         self.json_updater()
@@ -85,14 +83,16 @@ class bus_tg:
             set_minute = alert_detail["time"][2:]
             set_datetime = datetime(today_year,today_month,today_day,int(set_hour),int(set_minute),00,000000,tzinfo=self.tz)
             set_datetime_utc = set_datetime.astimezone(pytz.utc)
-            print("%s %s %s %s %s"%(alert_detail["route"][0],alert_detail["direction"],alert_detail["station"],str(set_datetime),str(set_datetime_utc)))
+            #print("%s %s %s %s %s"%(alert_detail["route"][0],alert_detail["direction"],alert_detail["station"],str(set_datetime),str(set_datetime_utc)))
             context.job_queue.run_once(self.checkseteta,set_datetime_utc,context=(chat_id,json.dumps(alert_detail)),name=str(uuid.uuid4()))
 
     
     def checkseteta(self,context: CallbackContext):
         chat_id, args = context.job.context
         args = json.loads(args)
-        route_list = [{"route":args["route"][0],"direction":args["direction"]}]
+        
+        #route_list = [{"route":args["route"][0],"direction":args["direction"]}]
+        route_list = args["route_list"]
         url = self.config["URL"]["STOP_ETA"]+"%s"%(args["station"])
         eta_json = self.callAPI(url)["data"]
         df = self.checketa(eta_json,route_list)
@@ -324,6 +324,8 @@ class bus_tg:
         query.answer()
         text = query.data
         self.cancel(text,query)
+        if len(text) == 1:
+            text = "0"+text
         context.user_data["minute"] = text
         context.user_data["time"] = context.user_data["hour"]+context.user_data["minute"]
         print(context.user_data["time"])
@@ -356,14 +358,33 @@ class bus_tg:
         if text == "1" or text == "2":
             context.user_data["period"] = text
             context.user_data.pop('handler_type')
-            context.user_data["route"] = [context.user_data["route"]]
+            context.user_data["route_list"] = []
+            route_alert_info = {
+                "route":context.user_data["route"],
+                "direction":context.user_data["direction"],
+                "service_type":context.user_data["service_type"]
+                }
+            context.user_data.pop("route")
+            context.user_data.pop("direction")
+            context.user_data.pop("service_type")
+            context.user_data.pop("hour")
+            context.user_data.pop("minute")
             print(context.user_data)
-            self.alert_list["data"].append(context.user_data.copy())
+
+            self.grouping(route_alert_info,context)
             print(self.alert_list)
             self.save_alert_list()
             query.edit_message_text("搞掂")
             return ConversationHandler.END
 
+    def grouping(self, route_alert_info,context):
+        for i,alert_station in enumerate(self.alert_list["data"]):
+            if context.user_data["station"] == alert_station["station"] and context.user_data["time"] == alert_station["time"] and context.user_data["period"] == alert_station["period"]:
+                self.alert_list["data"][i]["route_list"].append(route_alert_info.copy())
+                return
+        context.user_data["route_list"].append(route_alert_info)
+        self.alert_list["data"].append(context.user_data.copy())
+        return 
     
     def save_alert_list(self):
         with open(os.path.join(self.file_path,'alert.json'),'w') as f:
@@ -379,27 +400,25 @@ class bus_tg:
         }
         button_list = []
         sub_button_list = []
-        for alert_detail in self.alert_list["data"]: 
+        for alert_num,alert_detail in enumerate(self.alert_list["data"]):
+            print(alert_num+1 ==len(self.alert_list["data"]))
             station = alert_detail["station"]
-            direction = alert_detail["direction"]
-            alert_time = alert_detail["time"]
-            routes = alert_detail["route"]
             period = alert_detail["period"]
-            route_list = ""
-            for route in routes:
-                route_list += route +" "
-            
-            service_type = alert_detail["service_type"]
-            route_detail = self.routeStation2detail(routes[0],direction,service_type)
-            
-            dest_tc = route_detail["dest_tc"]
-            name_tc = self.stationID2tc(station)
-            df += "%s: 路線: %s 目的地: %s 巴士站: %s 通知時間: %s %s\n"%(str(index),route_list,dest_tc, name_tc, alert_time,alert_period[period])
-            sub_button_list.append(InlineKeyboardButton(str(index),callback_data=str(index)))
-            if index %3 ==0 or index ==len(self.alert_list["data"]):
-                button_list.append(sub_button_list)
-                sub_button_list=[]
-            index+=1
+            alert_time = alert_detail["time"]
+            for i,route_info in enumerate(alert_detail["route_list"]):
+                route = route_info["route"]
+                direction = route_info["direction"]
+                service_type = route_info["service_type"]
+                route_list = ""
+                route_detail = self.routeStation2detail(route,direction,service_type)
+                dest_tc = route_detail["dest_tc"]
+                name_tc = self.stationID2tc(station)
+                df += "%s: 路線: %s 目的地: %s 巴士站: %s 通知時間: %s %s\n"%(str(index),route,dest_tc, name_tc, alert_time,alert_period[period])
+                sub_button_list.append(InlineKeyboardButton(str(index),callback_data=str(index)))
+                if index %3 ==0 or (alert_num+1 ==len(self.alert_list["data"]) and i+1==len(alert_detail["route_list"])):
+                    button_list.append(sub_button_list)
+                    sub_button_list=[]
+                index+=1
         button_list.append([InlineKeyboardButton("取消",callback_data="cancel")])
         reply_markup=InlineKeyboardMarkup(button_list)
         update.message.reply_text(df,reply_markup=reply_markup)
@@ -412,19 +431,17 @@ class bus_tg:
         self.cancel(text,query)
         if text.isnumeric():
             index = int(text)
-            if index >= 1 and index <= len(self.alert_list["data"]):
-                self.alert_list["data"].pop(index-1)
-                self.save_alert_list()
-                query.edit_message_text("Del左")
-                return ConversationHandler.END
-            else:
-                query.edit_message_text("你打既字唔岩, 再黎過")
-                return ConversationHandler.END
-        
-
-            
-            
-    
+            for i,alert_list_data in enumerate(self.alert_list["data"]):
+                index = index - len(alert_list_data["route_list"])
+                if index <= 0:
+                    if len(alert_list_data["route_list"]) ==1:
+                        self.alert_list["data"].pop(i)
+                    else:
+                        self.alert_list["data"][i]["route_list"].pop(index-1)
+                    self.save_alert_list()
+                    query.edit_message_text("Del左")
+                    return ConversationHandler.END
+                    
     def routeStation2detail(self,_route, _direction, _service_type):
         for route_detail in self.route_list:
 
