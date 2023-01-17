@@ -48,8 +48,10 @@ class bus_tg:
         chat_id = update.message.chat_id
         t = datetime(2022,12,14,22,15,00,000000,tzinfo=self.tz)
         t_utc = t.astimezone(pytz.utc)
-        context.job_queue.run_once(self.hello,t_utc, context=(chat_id,"yuasdgu"), name=str(chat_id))
-        print( context.job_queue.get_jobs_by_name(str(chat_id)))
+        #context.job_queue.run_once(self.hello,t_utc, context=(chat_id,"yuasdgu"), name=str(chat_id))
+        #print( context.job_queue.get_jobs_by_name(str(chat_id)))
+        job_names = [job.name for job in context.job_queue.jobs()]
+        print(job_names)
         
     def hello(self, update: Update,context: CallbackContext):
         chat_id, args = context.job.context
@@ -448,8 +450,8 @@ class bus_tg:
         self.load_file()
         self.updater = Updater(self.token)
         self.dispatcher = self.updater.dispatcher
-        self.updater.job_queue.run_once(self.today_task,5,context=(self.chat_id,"yuasdgu"),name= str(uuid.uuid4()))
-        self.updater.job_queue.run_daily(self.today_task,self.daily_scan_time,days=(0, 1, 2, 3, 4, 5, 6),context=(self.chat_id,"yuasdgu"),name= str(uuid.uuid4()))
+        self.updater.job_queue.run_once(self.today_task,5,context=(self.chat_id,"yuasdgu"),name= "init_task")
+        self.updater.job_queue.run_daily(self.today_task,self.daily_scan_time,days=(0, 1, 2, 3, 4, 5, 6),context=(self.chat_id,"yuasdgu"),name= "daily task")
 
         
         #Add different command
